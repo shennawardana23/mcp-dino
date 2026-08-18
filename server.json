@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.shennawardana23/mcp-dino",
+  "description": "MCP server with an interactive dinosaur dashboard (MCP Apps UI). No API keys required.",
+  "repository": {
+    "url": "https://github.com/shennawardana23/mcp-dino",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/shennawardana23/mcp-dino/releases/download/v0.1.0/dino-mcp-darwin-arm64.mcpb",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

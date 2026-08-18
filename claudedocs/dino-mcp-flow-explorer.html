@@ -1,0 +1,502 @@
+<title>dino-mcp Flow Explorer</title>
+<style>
+:root{
+  --bg:#0F1113; --panel:#16191C; --panel-2:#1C2024; --line:#2A2E33;
+  --ink:#E7E6E2; --ink-soft:#8B9096; --ink-dim:#5B6066;
+  --accent:#E8A33D; --accent-soft:#3A2E17;
+  --data:#5B9BD5; --tool:#5FBF8E; --event:#E06C75; --skill:#E8A33D; --dep:#7A828A;
+  --font-ui:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
+}
+*{box-sizing:border-box;}
+html,body{background:var(--bg); color:var(--ink);}
+body{margin:0; font-family:var(--font-ui); font-size:14px; overflow:hidden; height:100vh;}
+.app{display:grid; grid-template-columns:300px 1fr; grid-template-rows:1fr auto; height:100vh;}
+.sidebar{
+  grid-row:1/3; background:var(--panel); border-right:1px solid var(--line);
+  display:flex; flex-direction:column; overflow-y:auto; padding:16px;
+}
+.brand{font-weight:600; font-size:15px; margin:0 0 2px;}
+.brand-sub{color:var(--ink-soft); font-size:12px; margin:0 0 18px;}
+.group{margin-bottom:18px;}
+.group h4{
+  font-size:10.5px; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-dim);
+  margin:0 0 8px; font-weight:600;
+}
+.preset-btn{
+  display:block; width:100%; text-align:left; background:var(--panel-2); border:1px solid var(--line);
+  color:var(--ink); padding:8px 10px; border-radius:6px; font-size:12.5px; margin-bottom:6px;
+  cursor:pointer; transition:border-color .12s;
+}
+.preset-btn:hover{border-color:var(--ink-dim);}
+.preset-btn.active{border-color:var(--accent); color:var(--accent); background:var(--accent-soft);}
+.check-row{display:flex; align-items:center; gap:8px; padding:5px 2px; font-size:13px; cursor:pointer;}
+.check-row input{accent-color:var(--accent);}
+.swatch{width:9px; height:9px; border-radius:2px; flex-shrink:0;}
+.line-swatch{width:18px; height:0; border-top-width:2px; border-top-style:solid; flex-shrink:0;}
+.comments-list{display:flex; flex-direction:column; gap:8px;}
+.comment-item{
+  background:var(--panel-2); border:1px solid var(--line); border-radius:6px; padding:8px 10px; font-size:12px;
+}
+.comment-item .ct{font-weight:600; color:var(--accent); font-size:11.5px;}
+.comment-item .cf{color:var(--ink-dim); font-family:var(--font-mono); font-size:10px; margin:1px 0 5px;}
+.comment-item .cx{color:var(--ink-soft); line-height:1.4;}
+.comment-item button{
+  background:none; border:none; color:var(--ink-dim); cursor:pointer; font-size:11px; margin-top:6px; padding:0;
+}
+.comment-item button:hover{color:var(--event);}
+.empty-hint{color:var(--ink-dim); font-size:12px; font-style:italic;}
+
+.canvas-wrap{position:relative; overflow:hidden; background:
+    radial-gradient(circle at 1px 1px, #22262A 1px, transparent 0) 0 0/22px 22px, var(--bg);}
+svg{width:100%; height:100%; cursor:grab;}
+svg.dragging{cursor:grabbing;}
+.node rect{stroke-width:1.4; transition:stroke-width .12s, filter .12s;}
+.node.commented rect{stroke:var(--accent); stroke-width:2.4;}
+.node:hover rect{filter:brightness(1.18);}
+.node text{font-family:var(--font-ui); pointer-events:none; user-select:none;}
+.node .title{font-size:12.5px; font-weight:600; fill:var(--ink);}
+.node .subtitle{font-size:10px; fill:var(--ink-soft); font-family:var(--font-mono);}
+.node .dot{fill:var(--accent);}
+.layer-label{font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; fill:var(--ink-dim); font-family:var(--font-ui);}
+.edge{fill:none;}
+.edge-label{font-size:9.5px; fill:var(--ink-dim); font-family:var(--font-mono);}
+
+.zoom-ctrl{position:absolute; bottom:16px; right:16px; display:flex; gap:6px;}
+.zoom-ctrl button{
+  width:30px; height:30px; border-radius:6px; border:1px solid var(--line); background:var(--panel);
+  color:var(--ink); cursor:pointer; font-size:15px; line-height:1;
+}
+.zoom-ctrl button:hover{border-color:var(--ink-dim);}
+.legend{
+  position:absolute; bottom:16px; left:16px; background:rgba(22,25,28,.92); border:1px solid var(--line);
+  border-radius:8px; padding:10px 14px; font-size:11px; backdrop-filter:blur(4px);
+}
+.legend-row{display:flex; align-items:center; gap:7px; margin:3px 0;}
+
+.prompt-bar{
+  grid-column:2; border-top:1px solid var(--line); background:var(--panel);
+  padding:12px 18px; display:flex; gap:12px; align-items:flex-start;
+}
+.prompt-bar textarea{
+  flex:1; background:var(--panel-2); border:1px solid var(--line); border-radius:6px; color:var(--ink);
+  font-family:var(--font-mono); font-size:11.5px; padding:10px 12px; resize:vertical; min-height:56px; max-height:160px;
+}
+.copy-btn{
+  background:var(--accent); color:#1B1500; border:none; border-radius:6px; padding:0 18px; font-weight:600;
+  font-size:12.5px; cursor:pointer; align-self:stretch; white-space:nowrap;
+}
+.copy-btn.copied{background:var(--tool); color:#06170F;}
+
+.modal-backdrop{
+  position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:50;
+}
+.modal-backdrop.open{display:flex;}
+.modal{
+  background:var(--panel); border:1px solid var(--line); border-radius:10px; width:400px; max-width:90vw; padding:20px;
+}
+.modal h3{margin:0 0 2px; font-size:15px;}
+.modal .mf{font-family:var(--font-mono); font-size:11px; color:var(--ink-dim); margin:0 0 14px;}
+.modal textarea{
+  width:100%; min-height:90px; background:var(--panel-2); border:1px solid var(--line); border-radius:6px;
+  color:var(--ink); font-size:13px; padding:10px; font-family:var(--font-ui); resize:vertical;
+}
+.modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:14px;}
+.modal-actions button{border:none; border-radius:6px; padding:8px 16px; font-size:12.5px; cursor:pointer; font-weight:600;}
+.btn-cancel{background:var(--panel-2); color:var(--ink-soft);}
+.btn-save{background:var(--accent); color:#1B1500;}
+</style>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<div class="app">
+  <aside class="sidebar">
+    <p class="brand">dino-mcp Flow Explorer</p>
+    <p class="brand-sub">Request lifecycle, tool registration &amp; MCP Apps rendering</p>
+
+    <div class="group">
+      <h4>View</h4>
+      <div id="presets"></div>
+    </div>
+
+    <div class="group">
+      <h4>Layers</h4>
+      <div id="layers"></div>
+    </div>
+
+    <div class="group">
+      <h4>Connection types</h4>
+      <div id="connTypes"></div>
+    </div>
+
+    <div class="group" style="flex:1;">
+      <h4>Comments (<span id="commentCount">0</span>)</h4>
+      <div class="comments-list" id="commentsList"></div>
+      <p class="empty-hint" id="emptyHint">Click any node in the diagram to leave feedback — it flows into the prompt below.</p>
+    </div>
+  </aside>
+
+  <div class="canvas-wrap" id="canvasWrap">
+    <svg id="svg" viewBox="0 0 1180 760" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <marker id="arrow-data" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto"><polygon points="0 0,8 3.5,0 7" fill="#5B9BD5"/></marker>
+        <marker id="arrow-tool" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto"><polygon points="0 0,8 3.5,0 7" fill="#5FBF8E"/></marker>
+        <marker id="arrow-event" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto"><polygon points="0 0,8 3.5,0 7" fill="#E06C75"/></marker>
+        <marker id="arrow-skill" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto"><polygon points="0 0,8 3.5,0 7" fill="#E8A33D"/></marker>
+        <marker id="arrow-dep" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto"><polygon points="0 0,8 3.5,0 7" fill="#7A828A"/></marker>
+      </defs>
+      <g id="viewport">
+        <g id="layerLabels"></g>
+        <g id="edges"></g>
+        <g id="nodes"></g>
+      </g>
+    </svg>
+    <div class="legend" id="legend"></div>
+    <div class="zoom-ctrl">
+      <button id="zoomOut">&minus;</button>
+      <button id="zoomReset">&#9678;</button>
+      <button id="zoomIn">+</button>
+    </div>
+  </div>
+
+  <div class="prompt-bar">
+    <textarea id="promptOut" readonly></textarea>
+    <button class="copy-btn" id="copyBtn">Copy Prompt</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h3 id="modalTitle">Node</h3>
+    <p class="mf" id="modalFile">path</p>
+    <textarea id="modalText" placeholder="Ask a question or request a change to this piece of the flow…"></textarea>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="modalCancel">Cancel</button>
+      <button class="btn-save" id="modalSave">Save comment</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const LAYERS = [
+  {key:'external', label:'Host / External', y:40,  color:'#3A3220', stroke:'#6B5B2E'},
+  {key:'cli',      label:'CLI',             y:150, color:'#20323A', stroke:'#3D6B7A'},
+  {key:'server',   label:'Server (composition root)', y:260, color:'#22262A', stroke:'#4A5058'},
+  {key:'tools',    label:'Tools',           y:430, color:'#1E3327', stroke:'#3D6B4E'},
+  {key:'resources',label:'Resources',       y:560, color:'#2E2438', stroke:'#5C4779'},
+  {key:'view',     label:'View (iframe)',   y:670, color:'#3A2420', stroke:'#6B3E33'},
+];
+
+const nodes = [
+  {id:'claude',   label:'Claude Desktop',   sub:'MCP host, ext-apps capable', layer:'external', x:20,  y:LAYERS[0].y, w:150},
+  {id:'inspector',label:'MCP Inspector',    sub:':5173 web debugger',         layer:'external', x:190, y:LAYERS[0].y, w:150},
+  {id:'browser',  label:'Plain Browser',    sub:'no MCP, just HTTP',          layer:'external', x:360, y:LAYERS[0].y, w:150},
+  {id:'tunnel',   label:'Cloudflare Tunnel',sub:'trycloudflare.com',         layer:'external', x:530, y:LAYERS[0].y, w:160},
+
+  {id:'main',     label:'cmd/dino-mcp',     sub:'main.go — subcommand + flags', layer:'cli', x:20, y:LAYERS[1].y, w:230},
+
+  {id:'new',      label:'server.New()',     sub:'server.go:34 — composition root', layer:'server', x:20,  y:LAYERS[2].y, w:210},
+  {id:'stdio',    label:'RunStdio',         sub:'server.go:82',                    layer:'server', x:250, y:LAYERS[2].y, w:160},
+  {id:'gin',      label:'Gin + CORS(*)',    sub:'server.go:88 RunStreamableHTTP',  layer:'server', x:430, y:LAYERS[2].y, w:190},
+  {id:'dashRoute',label:'GET /dashboard',   sub:'standalone fallback — ADR-0006',  layer:'server', x:640, y:LAYERS[2].y, w:180},
+  {id:'apiRoute', label:'GET /api/dinosaurs',sub:'JSON fallback — ADR-0006',       layer:'server', x:840, y:LAYERS[2].y, w:190},
+  {id:'health',   label:'GET /health',      sub:'status probe',                    layer:'server', x:1050,y:LAYERS[2].y, w:110},
+
+  {id:'think',    label:'dino_think',       sub:'tools/think.go — random fact',       layer:'tools', x:20,  y:LAYERS[3].y, w:190},
+  {id:'ask',      label:'dino_ask',         sub:'tools/ask.go — ignores question ⚠',  layer:'tools', x:240, y:LAYERS[3].y, w:210},
+  {id:'dashboard',label:'dino_dashboard',   sub:'tools/dashboard.go — _meta.ui',       layer:'tools', x:480, y:LAYERS[3].y, w:220},
+
+  {id:'regres',   label:'RegisterDashboardResource', sub:'resources/resources.go:17', layer:'resources', x:20,  y:LAYERS[4].y, w:280},
+  {id:'embedhtml',label:'dashboard_ui.html',          sub:'go:embed — 354KB bundle',    layer:'resources', x:330, y:LAYERS[4].y, w:210},
+  {id:'dashhtml', label:'DashboardHTML()',             sub:'resources/dashboard.go:43',  layer:'resources', x:570, y:LAYERS[4].y, w:190},
+
+  {id:'view',     label:'App (mcp-app.ts)', sub:'ext-apps SDK, PostMessageTransport', layer:'view', x:20, y:LAYERS[5].y, w:260},
+];
+
+const CTYPE = {
+  'data-flow': {color:'#5B9BD5', dash:'', label:'Data flow'},
+  'tool-call': {color:'#5FBF8E', dash:'6,3', label:'Tool call'},
+  'event':     {color:'#E06C75', dash:'4,4', label:'Event / render'},
+  'skill-invoke': {color:'#E8A33D', dash:'9,4', label:'MCP Apps trigger'},
+  'dependency':{color:'#7A828A', dash:'2,3', label:'Registration / import'},
+};
+
+const edges = [
+  {from:'claude',    to:'main',      type:'event',      label:'spawn (stdio)'},
+  {from:'inspector',  to:'gin',       type:'data-flow',  label:'POST /mcp'},
+  {from:'tunnel',     to:'gin',       type:'data-flow',  label:'HTTPS'},
+  {from:'browser',    to:'dashRoute', type:'data-flow',  label:'GET'},
+  {from:'browser',    to:'apiRoute',  type:'data-flow',  label:'fetch()'},
+
+  {from:'main',       to:'new',       type:'dependency', label:'server.New()'},
+  {from:'main',       to:'stdio',     type:'dependency', label:'stdio mode'},
+  {from:'main',       to:'gin',       type:'dependency', label:'http mode'},
+
+  {from:'new',        to:'think',     type:'dependency', label:'RegisterThink'},
+  {from:'new',        to:'ask',       type:'dependency', label:'RegisterAsk'},
+  {from:'new',        to:'dashboard', type:'dependency', label:'RegisterDashboardTool'},
+  {from:'new',        to:'regres',    type:'dependency', label:'RegisterDashboardResource'},
+
+  {from:'gin',        to:'think',     type:'tool-call',  label:'tools/call'},
+  {from:'gin',        to:'ask',       type:'tool-call',  label:'tools/call'},
+  {from:'gin',        to:'dashboard', type:'tool-call',  label:'tools/call'},
+  {from:'stdio',      to:'think',     type:'tool-call',  label:'tools/call'},
+
+  {from:'dashboard',  to:'regres',    type:'skill-invoke', label:'_meta.ui.resourceUri'},
+  {from:'regres',     to:'embedhtml', type:'dependency',  label:'go:embed'},
+  {from:'dashRoute',  to:'dashhtml',  type:'dependency',  label:'DashboardHTML()'},
+  {from:'dashhtml',   to:'embedhtml', type:'dependency',  label:'ReadFile'},
+  {from:'apiRoute',   to:'dashboard', type:'data-flow',   label:'FilteredDinosaurs()'},
+
+  {from:'regres',     to:'view',      type:'event',       label:'resources/read → iframe'},
+  {from:'claude',     to:'view',      type:'event',       label:'renders iframe'},
+  {from:'view',       to:'gin',       type:'tool-call',   label:'postMessage tools/call'},
+];
+
+const PRESETS = {
+  full:      {label:'Full System', layers:['external','cli','server','tools','resources','view'], types:['data-flow','tool-call','event','skill-invoke','dependency']},
+  protocol:  {label:'MCP Protocol Flow', layers:['external','cli','server','tools'], types:['data-flow','tool-call','dependency']},
+  apps:      {label:'MCP Apps Lifecycle', layers:['server','tools','resources','view','external'], types:['skill-invoke','event','dependency']},
+  fallback:  {label:'Standalone Fallback (ADR-0006)', layers:['external','server','resources'], types:['data-flow','dependency']},
+};
+
+const state = {
+  preset: 'full',
+  layers: Object.fromEntries(LAYERS.map(l=>[l.key,true])),
+  types: Object.fromEntries(Object.keys(CTYPE).map(t=>[t,true])),
+  comments: [],
+  zoom: 1, panX:0, panY:0,
+};
+
+const nodeById = Object.fromEntries(nodes.map(n=>[n.id,n]));
+
+function applyPreset(key){
+  state.preset = key;
+  const p = PRESETS[key];
+  LAYERS.forEach(l=> state.layers[l.key] = p.layers.includes(l.key));
+  Object.keys(CTYPE).forEach(t=> state.types[t] = p.types.includes(t));
+  renderControls();
+  renderDiagram();
+  updatePrompt();
+}
+
+function renderControls(){
+  const presetsEl = document.getElementById('presets');
+  presetsEl.innerHTML = '';
+  Object.entries(PRESETS).forEach(([key,p])=>{
+    const b = document.createElement('button');
+    b.className = 'preset-btn' + (state.preset===key ? ' active':'');
+    b.textContent = p.label;
+    b.onclick = ()=> applyPreset(key);
+    presetsEl.appendChild(b);
+  });
+
+  const layersEl = document.getElementById('layers');
+  layersEl.innerHTML = '';
+  LAYERS.forEach(l=>{
+    const row = document.createElement('label'); row.className='check-row';
+    row.innerHTML = `<input type="checkbox" ${state.layers[l.key]?'checked':''}><span class="swatch" style="background:${l.stroke}"></span>${l.label}`;
+    row.querySelector('input').onchange = e=>{ state.layers[l.key]=e.target.checked; state.preset=null; renderPresetActive(); renderDiagram(); updatePrompt(); };
+    layersEl.appendChild(row);
+  });
+
+  const typesEl = document.getElementById('connTypes');
+  typesEl.innerHTML = '';
+  Object.entries(CTYPE).forEach(([key,t])=>{
+    const row = document.createElement('label'); row.className='check-row';
+    row.innerHTML = `<input type="checkbox" ${state.types[key]?'checked':''}><span class="line-swatch" style="border-color:${t.color}"></span>${t.label}`;
+    row.querySelector('input').onchange = e=>{ state.types[key]=e.target.checked; state.preset=null; renderPresetActive(); renderDiagram(); updatePrompt(); };
+    typesEl.appendChild(row);
+  });
+
+  const legend = document.getElementById('legend');
+  legend.innerHTML = Object.values(CTYPE).map(t=>
+    `<div class="legend-row"><span class="line-swatch" style="border-color:${t.color}"></span>${t.label}</div>`
+  ).join('');
+}
+
+function renderPresetActive(){
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+}
+
+function nodeVisible(n){ return state.layers[n.layer]; }
+
+function edgePath(a,b){
+  const ax=a.x+a.w/2, ay=a.y+34, bx=b.x+b.w/2, by=b.y+34;
+  const dy = (by-ay);
+  const c = Math.max(40, Math.abs(dy)*0.35);
+  if (Math.abs(ay-by) < 6){
+    const midY = ay - 46;
+    return `M ${ax} ${ay} C ${ax} ${midY}, ${bx} ${midY}, ${bx} ${by}`;
+  }
+  return `M ${ax} ${ay} C ${ax} ${ay+c*Math.sign(dy||1)}, ${bx} ${by-c*Math.sign(dy||1)}, ${bx} ${by}`;
+}
+
+function renderDiagram(){
+  const nodesG = document.getElementById('nodes');
+  const edgesG = document.getElementById('edges');
+  const labelsG = document.getElementById('layerLabels');
+  nodesG.innerHTML=''; edgesG.innerHTML=''; labelsG.innerHTML='';
+
+  LAYERS.forEach(l=>{
+    if(!state.layers[l.key]) return;
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',8); t.setAttribute('y', l.y-10);
+    t.setAttribute('class','layer-label'); t.textContent = l.label;
+    labelsG.appendChild(t);
+  });
+
+  edges.forEach(e=>{
+    if(!state.types[e.type]) return;
+    const a = nodeById[e.from], b = nodeById[e.to];
+    if(!nodeVisible(a) || !nodeVisible(b)) return;
+    const ct = CTYPE[e.type];
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', edgePath(a,b));
+    path.setAttribute('class','edge');
+    path.setAttribute('stroke', ct.color);
+    path.setAttribute('stroke-width', '1.6');
+    if(ct.dash) path.setAttribute('stroke-dasharray', ct.dash);
+    path.setAttribute('marker-end', `url(#arrow-${e.type.split('-')[0]})`);
+    path.setAttribute('opacity', '0.85');
+    edgesG.appendChild(path);
+
+    const mx=(a.x+a.w/2+b.x+b.w/2)/2, my=(a.y+34+b.y+34)/2 - 6;
+    const lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
+    lbl.setAttribute('x',mx); lbl.setAttribute('y',my);
+    lbl.setAttribute('text-anchor','middle'); lbl.setAttribute('class','edge-label');
+    lbl.textContent = e.label;
+    edgesG.appendChild(lbl);
+  });
+
+  nodes.forEach(n=>{
+    if(!nodeVisible(n)) return;
+    const layer = LAYERS.find(l=>l.key===n.layer);
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','node' + (state.comments.some(c=>c.target===n.id) ? ' commented':''));
+    g.setAttribute('transform', `translate(${n.x},${n.y})`);
+    g.style.cursor='pointer';
+    g.onclick = ()=> openModal(n);
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('width', n.w); rect.setAttribute('height', 56);
+    rect.setAttribute('rx', 8); rect.setAttribute('fill', layer.color); rect.setAttribute('stroke', layer.stroke);
+    g.appendChild(rect);
+
+    const title = document.createElementNS('http://www.w3.org/2000/svg','text');
+    title.setAttribute('x',12); title.setAttribute('y',23); title.setAttribute('class','title');
+    title.textContent = n.label;
+    g.appendChild(title);
+
+    const sub = document.createElementNS('http://www.w3.org/2000/svg','text');
+    sub.setAttribute('x',12); sub.setAttribute('y',40); sub.setAttribute('class','subtitle');
+    sub.textContent = n.sub;
+    g.appendChild(sub);
+
+    if(state.comments.some(c=>c.target===n.id)){
+      const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('cx', n.w-12); dot.setAttribute('cy', 12); dot.setAttribute('r', 4);
+      dot.setAttribute('class','dot');
+      g.appendChild(dot);
+    }
+
+    nodesG.appendChild(g);
+  });
+}
+
+let activeNode = null;
+function openModal(n){
+  activeNode = n;
+  document.getElementById('modalTitle').textContent = n.label;
+  document.getElementById('modalFile').textContent = n.sub;
+  const existing = state.comments.find(c=>c.target===n.id);
+  document.getElementById('modalText').value = existing ? existing.text : '';
+  document.getElementById('modalBackdrop').classList.add('open');
+  document.getElementById('modalText').focus();
+}
+function closeModal(){ document.getElementById('modalBackdrop').classList.remove('open'); activeNode=null; }
+
+document.getElementById('modalCancel').onclick = closeModal;
+document.getElementById('modalBackdrop').onclick = (e)=>{ if(e.target.id==='modalBackdrop') closeModal(); };
+document.getElementById('modalSave').onclick = ()=>{
+  const text = document.getElementById('modalText').value.trim();
+  state.comments = state.comments.filter(c=>c.target !== activeNode.id);
+  if(text){
+    state.comments.push({id:Date.now(), target:activeNode.id, targetLabel:activeNode.label, targetFile:activeNode.sub, text});
+  }
+  closeModal();
+  renderDiagram();
+  renderComments();
+  updatePrompt();
+};
+
+function renderComments(){
+  const list = document.getElementById('commentsList');
+  const hint = document.getElementById('emptyHint');
+  document.getElementById('commentCount').textContent = state.comments.length;
+  list.innerHTML = '';
+  hint.style.display = state.comments.length ? 'none' : 'block';
+  state.comments.forEach(c=>{
+    const el = document.createElement('div'); el.className='comment-item';
+    el.innerHTML = `<div class="ct">${c.targetLabel}</div><div class="cf">${c.targetFile}</div><div class="cx">${c.text.replace(/</g,'&lt;')}</div><button data-id="${c.id}">Remove</button>`;
+    el.querySelector('button').onclick = ()=>{
+      state.comments = state.comments.filter(x=>x.id!==c.id);
+      renderDiagram(); renderComments(); updatePrompt();
+    };
+    list.appendChild(el);
+  });
+}
+
+function updatePrompt(){
+  const visibleLayers = LAYERS.filter(l=>state.layers[l.key]).map(l=>l.label);
+  const presetLabel = state.preset ? PRESETS[state.preset].label : 'a custom view';
+  let text = `This is the dino-mcp architecture (Go MCP server + MCP Apps dashboard), showing "${presetLabel}" — layers visible: ${visibleLayers.join(', ')}.`;
+  if(state.comments.length){
+    text += `\n\nFeedback on specific components:\n`;
+    state.comments.forEach(c=>{
+      text += `\n**${c.targetLabel}** (${c.targetFile}):\n${c.text}\n`;
+    });
+  } else {
+    text += `\n\nNo component-level feedback yet — click a node to leave one.`;
+  }
+  document.getElementById('promptOut').value = text;
+}
+
+document.getElementById('copyBtn').onclick = ()=>{
+  const ta = document.getElementById('promptOut');
+  ta.select();
+  navigator.clipboard.writeText(ta.value).then(()=>{
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!'; btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent='Copy Prompt'; btn.classList.remove('copied'); }, 1400);
+  });
+};
+
+// pan & zoom
+const svg = document.getElementById('svg');
+const viewport = document.getElementById('viewport');
+function applyTransform(){ viewport.setAttribute('transform', `translate(${state.panX},${state.panY}) scale(${state.zoom})`); }
+let dragging=false, lastX=0, lastY=0;
+svg.addEventListener('mousedown', e=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; svg.classList.add('dragging'); });
+window.addEventListener('mouseup', ()=>{ dragging=false; svg.classList.remove('dragging'); });
+window.addEventListener('mousemove', e=>{
+  if(!dragging) return;
+  state.panX += (e.clientX-lastX); state.panY += (e.clientY-lastY);
+  lastX=e.clientX; lastY=e.clientY; applyTransform();
+});
+document.getElementById('zoomIn').onclick = ()=>{ state.zoom=Math.min(2.2,state.zoom*1.18); applyTransform(); };
+document.getElementById('zoomOut').onclick = ()=>{ state.zoom=Math.max(0.4,state.zoom/1.18); applyTransform(); };
+document.getElementById('zoomReset').onclick = ()=>{ state.zoom=1; state.panX=0; state.panY=0; applyTransform(); };
+svg.addEventListener('wheel', e=>{
+  e.preventDefault();
+  const delta = e.deltaY>0 ? 0.92 : 1.08;
+  state.zoom = Math.max(0.4, Math.min(2.2, state.zoom*delta));
+  applyTransform();
+},{passive:false});
+
+renderControls();
+renderDiagram();
+renderComments();
+updatePrompt();
+applyTransform();
+</script>

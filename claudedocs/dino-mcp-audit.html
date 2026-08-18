@@ -1,0 +1,436 @@
+<title>dino-mcp Inspection Ledger</title>
+<style>
+:root{
+  --paper:#F6F5F1; --paper-raised:#FFFFFF; --ink:#1B1D1F; --ink-soft:#54524C;
+  --line:#D8D6CE; --line-strong:#C2BFB4;
+  --accent:#3D5A80; --accent-ink:#16324F; --accent-soft:#E4EBF2;
+  --sev-critical:#B3261E; --sev-critical-soft:#FBEAE9;
+  --sev-high:#B5541C; --sev-high-soft:#FBEEE3;
+  --sev-medium:#8A6D0A; --sev-medium-soft:#FAF3DC;
+  --sev-low:#2F6B49; --sev-low-soft:#E7F1EB;
+  --sev-info:#3D5A80; --sev-info-soft:#E4EBF2;
+  --ok:#2F6B49;
+  --font-display:'Newsreader',Georgia,'Times New Roman',serif;
+  --font-body:'IBM Plex Sans',-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#15171A; --paper-raised:#1C1F23; --ink:#EDECE8; --ink-soft:#A9A69D;
+    --line:#33363B; --line-strong:#454850;
+    --accent:#7FA3C9; --accent-ink:#BFD6EA; --accent-soft:#22303F;
+    --sev-critical:#F2887E; --sev-critical-soft:#3A211F;
+    --sev-high:#F0A876; --sev-high-soft:#3A2A19;
+    --sev-medium:#E3C665; --sev-medium-soft:#38300F;
+    --sev-low:#8FCBA6; --sev-low-soft:#1D3126;
+    --sev-info:#7FA3C9; --sev-info-soft:#22303F;
+    --ok:#8FCBA6;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#15171A; --paper-raised:#1C1F23; --ink:#EDECE8; --ink-soft:#A9A69D;
+  --line:#33363B; --line-strong:#454850;
+  --accent:#7FA3C9; --accent-ink:#BFD6EA; --accent-soft:#22303F;
+  --sev-critical:#F2887E; --sev-critical-soft:#3A211F;
+  --sev-high:#F0A876; --sev-high-soft:#3A2A19;
+  --sev-medium:#E3C665; --sev-medium-soft:#38300F;
+  --sev-low:#8FCBA6; --sev-low-soft:#1D3126;
+  --sev-info:#7FA3C9; --sev-info-soft:#22303F;
+  --ok:#8FCBA6;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--font-body); line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:920px; margin:0 auto; padding:56px 28px 120px;}
+.masthead{
+  display:flex; justify-content:space-between; align-items:flex-end;
+  gap:24px; border-bottom:3px solid var(--accent); padding-bottom:20px; margin-bottom:8px;
+  flex-wrap:wrap;
+}
+.masthead h1{
+  font-family:var(--font-display); font-weight:600; font-size:clamp(1.9rem,4vw,2.6rem);
+  margin:0; letter-spacing:-0.01em; text-wrap:balance;
+}
+.masthead .kicker{
+  font-family:var(--font-mono); font-size:0.72rem; letter-spacing:0.14em;
+  text-transform:uppercase; color:var(--accent-ink); margin:0 0 6px;
+}
+.masthead .meta{
+  font-family:var(--font-mono); font-size:0.78rem; color:var(--ink-soft); text-align:right;
+}
+.meta div{overflow-wrap:break-word;}
+
+.verdict{
+  display:grid; grid-template-columns:1.1fr 1fr; gap:20px;
+  margin:32px 0 40px;
+}
+@media (max-width:700px){ .verdict{grid-template-columns:1fr;} }
+.verdict-card{
+  background:var(--paper-raised); border:1px solid var(--line); border-radius:4px; padding:22px 24px;
+  box-shadow:0 1px 0 var(--line-strong), 0 8px 24px -18px rgba(0,0,0,.4);
+}
+.verdict-card h2{
+  font-family:var(--font-mono); font-size:0.72rem; text-transform:uppercase;
+  letter-spacing:0.12em; color:var(--ink-soft); margin:0 0 12px; font-weight:600;
+}
+.verdict-lede{font-family:var(--font-display); font-size:1.15rem; line-height:1.4; margin:0;}
+.chip-row{display:flex; flex-wrap:wrap; gap:8px;}
+.chip{
+  font-family:var(--font-mono); font-size:0.76rem; font-weight:700;
+  padding:6px 12px; border-radius:3px; display:inline-flex; align-items:center; gap:7px;
+  color:#fff; letter-spacing:0.02em;
+}
+.chip .n{font-variant-numeric:tabular-nums; font-size:0.92rem;}
+.chip.critical{background:var(--sev-critical);}
+.chip.high{background:var(--sev-high);}
+.chip.medium{background:var(--sev-medium); color:#241D02;}
+.chip.low{background:var(--sev-low);}
+.chip.info{background:var(--sev-info);}
+
+.toc{
+  font-family:var(--font-mono); font-size:0.82rem; border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line); padding:16px 0; margin-bottom:48px;
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:6px 20px;
+}
+.toc a{color:var(--ink); text-decoration:none; border-bottom:1px dotted var(--line-strong);}
+.toc a:hover{color:var(--accent-ink); border-color:var(--accent-ink);}
+.toc .num{color:var(--ink-soft); margin-right:8px;}
+
+section.exhibit{margin-bottom:52px; scroll-margin-top:24px;}
+.exhibit-head{
+  display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+  border-bottom:1px solid var(--line-strong); padding-bottom:10px; margin-bottom:16px;
+}
+.exhibit-num{
+  font-family:var(--font-display); font-size:2.6rem; color:var(--line-strong); font-weight:600;
+  line-height:1; margin-right:2px;
+}
+.exhibit-head h3{
+  font-family:var(--font-display); font-size:1.5rem; margin:0; font-weight:600; flex:1; min-width:200px;
+}
+.exhibit-body{display:grid; grid-template-columns:1.3fr 1fr; gap:24px; align-items:start;}
+@media (max-width:760px){ .exhibit-body{grid-template-columns:1fr;} }
+.exhibit-body p{margin:0 0 12px;}
+.exhibit-body .label{
+  font-family:var(--font-mono); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em;
+  color:var(--ink-soft); margin:18px 0 6px; font-weight:600;
+}
+.exhibit-body .label:first-child{margin-top:0;}
+.evidence{
+  background:var(--paper-raised); border:1px solid var(--line); border-radius:4px;
+  padding:14px 16px; font-family:var(--font-mono); font-size:0.78rem; overflow-x:auto;
+  white-space:pre; color:var(--ink-soft); line-height:1.6;
+}
+.evidence .path{color:var(--accent-ink);}
+.evidence .ok{color:var(--ok);}
+.evidence .bad{color:var(--sev-critical);}
+.fix{
+  background:var(--accent-soft); border:1px solid var(--line-strong); border-radius:4px;
+  padding:10px 14px; font-size:0.9rem; margin-top:10px;
+}
+.fix strong{font-family:var(--font-mono); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; display:block; margin-bottom:4px; color:var(--accent-ink);}
+
+.table-wrap{overflow-x:auto; margin:4px 0;}
+table.ledger{width:100%; min-width:480px; border-collapse:collapse; font-size:0.86rem;}
+table.ledger th{
+  font-family:var(--font-mono); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em;
+  text-align:left; color:var(--ink-soft); border-bottom:1px solid var(--line-strong); padding:8px 10px;
+}
+table.ledger td{border-bottom:1px solid var(--line); padding:9px 10px; vertical-align:top;}
+table.ledger td.cmd, table.ledger td code{font-family:var(--font-mono); font-size:0.78rem;}
+table.ledger tr:last-child td{border-bottom:none;}
+.status-ok{color:var(--ok); font-weight:600;}
+.status-bad{color:var(--sev-critical); font-weight:600;}
+
+.scope-note{
+  font-size:0.92rem; color:var(--ink-soft); border:1px dashed var(--line-strong); border-radius:4px;
+  padding:14px 18px; margin:0 0 44px;
+}
+.scope-note strong{color:var(--ink);}
+
+footer{
+  margin-top:60px; padding-top:20px; border-top:1px solid var(--line);
+  font-family:var(--font-mono); font-size:0.74rem; color:var(--ink-soft);
+  display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+}
+</style>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<div class="wrap">
+
+  <div class="masthead">
+    <div>
+      <p class="kicker">Inspection Ledger &middot; Not a build artifact</p>
+      <h1>dino-mcp &mdash; System Audit</h1>
+    </div>
+    <div class="meta">
+      <div>repo: shennawardana23/mcp-dino</div>
+      <div>commit head: 04e1e67 (1 commit; rest untracked)</div>
+      <div>go1.25.7 &middot; go-sdk v1.7.0 &middot; gin v1.12.0</div>
+    </div>
+  </div>
+
+  <div class="verdict">
+    <div class="verdict-card">
+      <h2>Verdict</h2>
+      <p class="verdict-lede">Small, readable server &mdash; the design is not over-built. But three findings are load-bearing: a silent version-injection no-op that ships every tagged release mislabeled <code>0.1.0</code>, a Q&amp;A tool that never reads its own input, and a locally-exposed MCP endpoint with DNS-rebinding protection turned off next to a wildcard CORS origin.</p>
+    </div>
+    <div class="verdict-card">
+      <h2>By severity</h2>
+      <div class="chip-row">
+        <span class="chip critical"><span class="n">1</span> critical</span>
+        <span class="chip high"><span class="n">2</span> high</span>
+        <span class="chip medium"><span class="n">3</span> medium</span>
+        <span class="chip low"><span class="n">2</span> low</span>
+        <span class="chip info"><span class="n">16</span> CVEs (toolchain)</span>
+      </div>
+      <p style="font-size:0.85rem; color:var(--ink-soft); margin:14px 0 0;">Every number below was produced by an actual command run against this checkout today &mdash; see the verification ledger at the end.</p>
+    </div>
+  </div>
+
+  <div class="scope-note">
+    <strong>On &ldquo;Provider Fallback Mechanism&rdquo;:</strong> dino-mcp calls no LLM provider and has no provider-fallback code path &mdash; there is nothing named or shaped like that in this codebase. The nearest real analogues, audited below, are (1) the MCP&nbsp;Apps&nbsp;&harr;&nbsp;standalone-browser dual path documented in ADR-0006, and (2) <code>dino_ask</code>, a &ldquo;Q&amp;A&rdquo; tool that looks like it branches on input but structurally cannot. If a provider-fallback concept lives elsewhere, point me at it and I'll re-scope.
+  </div>
+
+  <div class="toc">
+    <a href="#e1"><span class="num">01</span>Version injection is a silent no-op</a>
+    <a href="#e2"><span class="num">02</span>dino_ask ignores its own input</a>
+    <a href="#e3"><span class="num">03</span>DNS-rebinding protection off + wildcard CORS</a>
+    <a href="#e4"><span class="num">04</span>Zero unit tests</a>
+    <a href="#e5"><span class="num">05</span>16 reachable CVEs, all patch-only fixes</a>
+    <a href="#e6"><span class="num">06</span>Stateless transport (2026-07-28) not adopted</a>
+    <a href="#e7"><span class="num">07</span>Working tree: one commit, everything else untracked</a>
+    <a href="#e8"><span class="num">08</span>Duplicated input schemas</a>
+  </div>
+
+  <section class="exhibit" id="e1">
+    <div class="exhibit-head">
+      <span class="exhibit-num">01</span>
+      <h3>Version injection is a silent no-op</h3>
+      <span class="chip critical">critical &middot; build/release</span>
+    </div>
+    <div class="exhibit-body">
+      <div>
+        <p><code>Makefile</code> and <code>.github/workflows/release.yml</code> both inject the version with:</p>
+        <div class="evidence">-ldflags="-X <span class="path">github.com/msw/dino-mcp</span>/internal/server.Version=$(VERSION)"</div>
+        <p>but <code>go.mod</code> declares <code>module <strong>mcp-dino</strong></code> &mdash; a different import path. <code>-X</code> silently no-ops when the symbol path doesn't resolve; <code>go build</code> gives no warning.</p>
+        <p class="label">Effect</p>
+        <p>Every binary built by <code>make build</code>, and every GitHub Release produced by pushing a <code>v*</code> tag, reports the hardcoded default (<code>server.Version = "0.1.0"</code>) forever &mdash; regardless of the actual tag. Support and rollback both lose the ability to trust <code>dino-mcp -version</code>.</p>
+        <div class="fix"><strong>Fix</strong>Change both ldflags to <code>-X mcp-exporter/internal/server.Version=...</code> style &mdash; i.e. <code>-X mcp-dino/internal/server.Version=$(VERSION)</code> &mdash; and add a CI assertion that <code>./bin/dino-mcp -version</code> contains the tag, so this class of bug fails loudly next time.</div>
+      </div>
+      <div>
+        <p class="label">Reproduced live, this session</p>
+        <div class="evidence">$ go build -ldflags="-X github.com/msw/dino-mcp/internal/server.Version=v9.9.9-TEST" \
+    -o /tmp/dino-ldflags-test ./cmd/dino-mcp
+$ /tmp/dino-ldflags-test stdio -version
+<span class="bad">dino-mcp 0.1.0</span>   <span style="color:var(--ink-soft)"># expected v9.9.9-TEST</span></div>
+        <p class="label">Where the wrong path came from</p>
+        <p style="font-size:0.88rem;">An untracked <code>go copy.mod</code> in the working tree still declares <code>module github.com/msw/dino-mcp</code> &mdash; the module was renamed to <code>mcp-dino</code> at some point and the two ldflags lines were never updated to match. See Exhibit 07.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="exhibit" id="e2">
+    <div class="exhibit-head">
+      <span class="exhibit-num">02</span>
+      <h3>dino_ask ignores its own input</h3>
+      <span class="chip high">high &middot; correctness</span>
+    </div>
+    <div class="exhibit-body">
+      <div>
+        <p><code>internal/tools/ask.go</code> declares the tool as question-answering, and the argument struct even carries the question through into the result &mdash; but the answer body never looks at it:</p>
+        <div class="evidence">func answerDinoQuestion(question string) (species, answer string) {
+	return "Dinosaurs", `<span style="color:var(--ink-soft)">That's a great question about dinosaurs!
+... (same 9-line paragraph, every time) ...</span>`
+}</div>
+        <p><code>question</code> is a named parameter that is never referenced in the function body. Ask <em>&ldquo;What did T-Rex eat?&rdquo;</em> or <em>&ldquo;How big was Diplodocus?&rdquo;</em> &mdash; identical output either way.</p>
+        <div class="fix"><strong>Fix</strong>Either branch on keywords against the existing <code>dinoData</code>/<code>dinoFacts</code> tables (cheap, in keeping with the project's no-external-API design), or rename the tool/description so it stops promising per-question answers it doesn't deliver.</div>
+      </div>
+      <div>
+        <p class="label">Confirmed by reading</p>
+        <div class="evidence"><span class="path">internal/tools/ask.go:39</span>
+func answerDinoQuestion(question string) (species, answer string)
+  &darr;
+  body never contains the identifier `<span class="bad">question</span>`
+  anywhere after the parameter list.</div>
+        <p class="label">Why this matters for the audit's ask</p>
+        <p style="font-size:0.88rem;">This is the closest real shape to a &ldquo;fallback mechanism&rdquo; in the codebase: something that looks like it selects a response per input, but structurally always falls back to one path. Worth naming precisely rather than assuming a provider-fallback layer exists.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="exhibit" id="e3">
+    <div class="exhibit-head">
+      <span class="exhibit-num">03</span>
+      <h3>DNS-rebinding protection disabled + wildcard CORS on every route</h3>
+      <span class="chip high">high &middot; security</span>
+    </div>
+    <div class="exhibit-body">
+      <div>
+        <p><code>server.go</code>'s HTTP mode sets two permissive flags unconditionally &mdash; not gated behind a <code>-tunnel</code> flag or environment check:</p>
+        <div class="evidence">&amp;mcp.StreamableHTTPOptions{
+    Logger:                     logger,
+    <span class="bad">DisableLocalhostProtection: true</span>,
+}
+&hellip;
+c.Header("Access-Control-Allow-Origin", <span class="bad">"*"</span>)</div>
+        <p>The Go SDK's own doc comment on this field:</p>
+        <div class="evidence" style="font-style:italic;">"By default, requests arriving via a localhost address that have
+a non-localhost Host header are rejected with 403 Forbidden.
+This protects against DNS rebinding attacks&hellip;
+Only disable this if you understand the security implications."</div>
+        <div class="fix"><strong>Fix</strong>Gate <code>DisableLocalhostProtection</code> behind the same flag that enables the Cloudflare Tunnel path (it exists for exactly that case per ADR-0005), default <code>false</code> for plain local <code>http</code> runs. Narrow CORS to the known Inspector/tunnel origins, or wrap the handler with <code>http.NewCrossOriginProtection()</code> as the SDK's own deprecation note now recommends instead of hand-rolled headers.</div>
+      </div>
+      <div>
+        <p class="label">Attack shape this opens</p>
+        <p style="font-size:0.88rem;">Any page a user has open in a browser can already read/write <code>*</code>-CORS'd origins; combined with rebinding protection off, a hostile page can resolve a domain it controls to <code>127.0.0.1</code> and the request still isn't rejected on Host-header grounds. This is exactly the &ldquo;local MCP server compromise&rdquo; scenario the linked spec page names.</p>
+        <p class="label">Reference</p>
+        <p style="font-size:0.82rem;"><code>modelcontextprotocol.io/specification/2025-11-25/basic/security_best_practices#local-mcp-server-compromise</code> &mdash; cited directly in the SDK source (<code>go-sdk@v1.7.0/mcp/streamable.go:181</code>).</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="exhibit" id="e4">
+    <div class="exhibit-head">
+      <span class="exhibit-num">04</span>
+      <h3>Zero Go unit tests</h3>
+      <span class="chip medium">medium &middot; maintainability</span>
+    </div>
+    <div class="exhibit-body">
+      <div>
+        <p>All verification is one 161-line shell script (<code>test_mcp.sh</code>) driving 7 happy-path JSON-RPC calls over a live server, parsed with inline Python whose stderr is discarded (<code>2&gt;/dev/null</code>). There is no assertion on error paths: an empty <code>question</code>, an unknown <code>filter</code>, a malformed tool call.</p>
+        <div class="fix"><strong>Fix</strong>Add table-driven <code>*_test.go</code> for <code>FilteredDinosaurs</code>, <code>contains</code>/<code>toLower</code>, and the tool handlers via <code>mcp.NewInMemoryTransports</code> (the SDK's own example pattern) &mdash; these run in milliseconds and don't need a live port.</div>
+      </div>
+      <div>
+        <p class="label">Reproduced live, this session</p>
+        <div class="evidence">$ find . -name "*_test.go" -not -path "./ui/*"
+<span class="bad">(no output)</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="exhibit" id="e5">
+    <div class="exhibit-head">
+      <span class="exhibit-num">05</span>
+      <h3>16 call-reachable CVEs &mdash; all fixed by a routine bump, none by app code</h3>
+      <span class="chip medium">medium &middot; vulnerability</span>
+    </div>
+    <div class="exhibit-body">
+      <div>
+        <p><code>govulncheck ./...</code> reports 16 vulnerabilities the code actually calls into (of 52 flagged in total across direct, imported, and required modules). All 16 trace to two stale pins: the local <code>go1.25.7</code> toolchain (fixes land through <code>go1.25.13</code>) and <code>golang.org/x/net@v0.51.0</code> (needs &ge;<code>v0.55.0</code>, latest is <code>v0.58.0</code>).</p>
+        <div class="fix"><strong>Fix</strong>Bump the toolchain and run <code>go get -u golang.org/x/net &amp;&amp; go mod tidy</code>. No handler code changes required &mdash; this is dependency hygiene, matching the standing instruction to track latest stable framework versions. Left undone here since it edits <code>go.mod</code>/<code>go.sum</code> and this session was told not to commit.</div>
+      </div>
+      <div>
+        <p class="label">Worst 3 of 16 (full list in ledger)</p>
+        <div class="table-wrap">
+        <table class="ledger" style="font-size:0.78rem;">
+          <tr><th>ID</th><th>Issue</th><th>Fixed in</th></tr>
+          <tr><td>GO-2026-5026</td><td>net/http request smuggling via x/net</td><td>x/net v0.55.0</td></tr>
+          <tr><td>GO-2026-4918</td><td>HTTP/2 infinite loop (DoS) via x/net</td><td>x/net v0.53.0</td></tr>
+          <tr><td>GO-2026-4865</td><td>html/template JS-context XSS tracking bug</td><td>go1.25.9</td></tr>
+        </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="exhibit" id="e6">
+    <div class="exhibit-head">
+      <span class="exhibit-num">06</span>
+      <h3>Stateless transport (2026-07-28 spec) not adopted</h3>
+      <span class="chip low">low &middot; spec currency</span>
+    </div>
+    <div class="exhibit-body">
+      <div>
+        <p>go-sdk v1.7.0 &mdash; already the latest tagged version dino-mcp depends on &mdash; ships <code>protocolVersion20260728</code> and a stateless mode (<code>StreamableHTTPOptions.Stateless</code>, SEP-2567) that drops session-ID tracking entirely. <code>server.go</code> doesn't set it, so the server stays on session-based <code>Mcp-Session-Id</code> transport.</p>
+        <div class="fix"><strong>Fix</strong>Not urgent &mdash; session mode is still spec-valid. Worth a deliberate flag (e.g. <code>-stateless</code>) once Inspector/Claude Desktop's stateless-mode support is confirmed, since stateless mode rejects GET/DELETE with 405 and refuses any server&rarr;client request.</div>
+      </div>
+      <div>
+        <p class="label">Confirmed in SDK source</p>
+        <div class="evidence"><span class="path">go-sdk@v1.7.0/mcp/streamable.go:129</span>
+Stateless bool // SEP-2567 sessionless direction
+<span class="path">go-sdk@v1.7.0/mcp/client.go</span>
+protocolVersion20260728 &mdash; present, used in negotiation</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="exhibit" id="e7">
+    <div class="exhibit-head">
+      <span class="exhibit-num">07</span>
+      <h3>Working tree: one commit, everything else untracked</h3>
+      <span class="chip low">low &middot; auditability</span>
+    </div>
+    <div class="exhibit-body">
+      <div>
+        <p><code>git log</code> shows a single commit (&ldquo;feat: initiate mcp dino&rdquo;). Every source file, doc, workflow, and the Makefile are untracked &mdash; including three stray artifacts that look like leftovers from the module rename in Exhibit 01:</p>
+        <div class="table-wrap">
+        <table class="ledger">
+          <tr><th>File</th><th>What it is</th></tr>
+          <tr><td><code>go copy.mod</code></td><td>module github.com/msw/dino-mcp, go-sdk v1.6.1 (one behind current)</td></tr>
+          <tr><td><code>dino-mcp copy</code></td><td>22&nbsp;MB stray compiled Mach-O binary</td></tr>
+          <tr><td><code>README copy.md</code></td><td>478-line duplicate of the README</td></tr>
+        </table>
+        </div>
+        <div class="fix"><strong>Fix</strong>None applied &mdash; this session was told not to commit anything. Flagging so the actual commit, whenever it happens, deliberately excludes the three stray files above (they're build/editor byproducts, not source) and captures everything else that matters.</div>
+      </div>
+      <div>
+        <p class="label">Reproduced live, this session</p>
+        <div class="evidence">$ git status
+On branch main
+<span class="ok">Your branch is up to date with 'origin/main'.</span>
+Untracked files:
+  .gitignore  AGENTS.md  ARCHITECTURE.md  ... (24 more)</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="exhibit" id="e8">
+    <div class="exhibit-head">
+      <span class="exhibit-num">08</span>
+      <h3>Duplicated input schemas</h3>
+      <span class="chip low">low &middot; simplification</span>
+    </div>
+    <div class="exhibit-body">
+      <div>
+        <p>Every tool declares a hand-written <code>InputSchema: map[string]any{...}</code> alongside a typed args struct (<code>DinoAskArgs</code>, <code>DinoDashboardArgs</code>) that already carries <code>jsonschema:</code> tags. Per the SDK's own <code>AddTool</code> doc: <em>&ldquo;If the tool's input schema is nil, it is set to the schema inferred from the In type parameter&hellip; property descriptions are read from the 'jsonschema' struct tag.&rdquo;</em> The hand-written maps are redundant and can silently drift from the struct.</p>
+        <div class="fix"><strong>Fix</strong>Drop the <code>InputSchema</code> maps, let <code>mcp.AddTool</code> infer from the structs &mdash; one source of truth instead of two that can disagree.</div>
+      </div>
+      <div>
+        <p class="label">Not a bug today</p>
+        <p style="font-size:0.88rem; color:var(--ink-soft);">The two currently agree, so nothing is broken in practice &mdash; this is a maintainability note, not a defect.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="exhibit" id="verification">
+    <div class="exhibit-head">
+      <span class="exhibit-num">&#10003;</span>
+      <h3>Verification ledger &mdash; every command this audit is built on</h3>
+    </div>
+    <div class="table-wrap">
+    <table class="ledger">
+      <tr><th>Command</th><th>Result</th><th>Feeds</th></tr>
+      <tr><td class="cmd"><code>go build -ldflags=&quot;-X github.com/msw/...&quot;</code> then <code>-version</code></td><td class="status-bad">printed 0.1.0, not injected value</td><td>Exhibit 01</td></tr>
+      <tr><td class="cmd"><code>grep -n question ask.go</code> (manual read)</td><td class="status-bad">parameter unused in function body</td><td>Exhibit 02</td></tr>
+      <tr><td class="cmd">Read <code>server.go</code> + SDK <code>streamable.go</code> doc comment</td><td class="status-bad">flag confirmed unconditional</td><td>Exhibit 03</td></tr>
+      <tr><td class="cmd"><code>find . -name &quot;*_test.go&quot;</code></td><td class="status-bad">zero results</td><td>Exhibit 04</td></tr>
+      <tr><td class="cmd"><code>govulncheck ./...</code></td><td class="status-bad">16 reachable / 52 flagged</td><td>Exhibit 05</td></tr>
+      <tr><td class="cmd"><code>go vet ./...</code></td><td class="status-ok">clean, no output</td><td>&mdash;</td></tr>
+      <tr><td class="cmd">Read go-sdk v1.7.0 <code>client.go</code>, <code>mrtr.go</code>, <code>streamable.go</code></td><td class="status-ok">2026-07-28 spec support confirmed present</td><td>Exhibit 06</td></tr>
+      <tr><td class="cmd"><code>git status</code>, <code>git log</code></td><td class="status-bad">1 commit, 27 untracked paths</td><td>Exhibit 07</td></tr>
+      <tr><td class="cmd">Read <code>mcp.AddTool</code> doc comment, <code>server.go:561</code></td><td class="status-ok">schema-inference confirmed</td><td>Exhibit 08</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <footer>
+    <span>dino-mcp system audit &middot; read-only, no changes applied</span>
+    <span>go-sdk v1.7.0 is current &middot; gin v1.12.0 is current</span>
+  </footer>
+
+</div>
