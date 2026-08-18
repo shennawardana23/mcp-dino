@@ -234,6 +234,83 @@ Then drive it through MCP Inspector the same way as local development (see [`tes
 
 ---
 
+## Understanding `fileSha256`
+
+`server.json`'s package entry carries a hash:
+
+```json
+"fileSha256": "f4e4445f8f881d5df59f0c257b06f04b661a05b9e37eb494b4ea40707f7ba8d7"
+```
+
+**What it is.** A SHA-256 hash of the exact `.mcpb` file's bytes — a fingerprint. The same input file always produces the same 64-character hex string; changing even one byte produces a completely different hash.
+
+**What it's for.** Integrity verification. When Claude Desktop, `mcp-publisher`, or any install tool downloads the bundle from the release URL, it re-hashes the bytes it received and compares them to this value. Match → the file arrived intact, install proceeds. Mismatch → reject. This guards against a corrupted download, a swapped/tampered release asset, or a MITM substituting a different binary at that URL.
+
+`mcp-publisher publish` actually enforces this — it's the exact error hit during step 8:
+```
+must include a fileSha256 hash for integrity verification
+```
+It refuses to publish an `mcpb` package entry without one. (`mcp-publisher validate` does *not* check it — only `publish` does.)
+
+**How to generate it:**
+```bash
+shasum -a 256 dino-mcp-darwin-arm64.mcpb
+# f4e4445f8f881d5df59f0c257b06f04b661a05b9e37eb494b4ea40707f7ba8d7  dino-mcp-darwin-arm64.mcpb
+```
+Take just the hash (before the two spaces).
+
+**Gotcha:** hash the file you actually uploaded to the release, not just your local build directory — they must be byte-identical. Verify by downloading it back and hashing that:
+```bash
+curl -sL "https://github.com/shennawardana23/mcp-dino/releases/download/v0.1.0/dino-mcp-darwin-arm64.mcpb" -o /tmp/verify.mcpb
+shasum -a 256 /tmp/verify.mcpb
+```
+If you ever rebuild and re-upload the `.mcpb` (bug fix, new binary), the file bytes change → the hash changes → `server.json`'s `fileSha256` must be regenerated and republished, or every future install will fail the integrity check.
+
+---
+
+## Use It in Claude Desktop
+
+Two ways to actually run the published server, not just see its registry listing.
+
+### A. Point at your local build (fastest for development)
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "dino-mcp": {
+      "command": "/absolute/path/to/mcp-dino/bin/dino-mcp",
+      "args": ["stdio"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop. A hammer icon (🔨) appears in chat when tools are available.
+
+### B. Install the published `.mcpb` (the real end-user flow)
+
+This is the artifact that's actually live on the registry — installing it this way exercises the whole publish, not just the dev binary.
+
+```bash
+curl -sL "https://github.com/shennawardana23/mcp-dino/releases/download/v0.1.0/dino-mcp-darwin-arm64.mcpb" -o ~/Downloads/dino-mcp.mcpb
+```
+
+In Claude Desktop: open **Settings**, then drag `dino-mcp.mcpb` into the Settings window. Per Anthropic's Desktop Extensions documentation, this triggers an install flow showing the extension's name/description, required permissions, and an **Install** button — no manual config file editing, no restart-and-hope.
+
+### Try it
+
+In chat, once either path is set up:
+
+```
+Show me the dinosaur dashboard with carnivores
+```
+
+Claude detects `_meta.ui.resourceUri` on `dino_dashboard`, calls `resources/read`, and renders the iframe. Recommend path **B** first since it tests the exact thing now live on the registry, not just a local dev build.
+
+---
+
 ## What to Check for Each Issue
 
 | Symptom | Likely Cause | Fix |
