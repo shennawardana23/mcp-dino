@@ -40,7 +40,7 @@ jobs:
             for arch in arm64 amd64; do
               echo "=== $os/$arch ==="
               GOOS=$os GOARCH=$arch go build \
-                -ldflags="-X github.com/msw/dino-mcp/internal/server.Version=${GITHUB_REF_NAME}" \
+                -ldflags="-X mcp-dino/internal/server.Version=${GITHUB_REF_NAME}" \
                 -o dist/dino-mcp-$os-$arch ./cmd/dino-mcp
             done
           done

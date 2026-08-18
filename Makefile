@@ -20,7 +20,7 @@ OUTDIR ?= bin
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 
 # Embed the version at build time
-LDFLAGS = -ldflags="-X github.com/msw/dino-mcp/internal/server.Version=$(VERSION)"
+LDFLAGS = -ldflags="-X mcp-dino/internal/server.Version=$(VERSION)"
 
 .PHONY: all build build-ui build-go install run-stdio run-http run-http-json dev-http run-tunnel test test-inspector lint clean help
 
