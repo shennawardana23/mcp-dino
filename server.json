@@ -12,6 +12,7 @@
       "registryType": "mcpb",
       "identifier": "https://github.com/shennawardana23/mcp-dino/releases/download/v0.1.0/dino-mcp-darwin-arm64.mcpb",
       "version": "0.1.0",
+      "fileSha256": "f4e4445f8f881d5df59f0c257b06f04b661a05b9e37eb494b4ea40707f7ba8d7",
       "transport": {
         "type": "stdio"
       }
