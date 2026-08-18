@@ -203,7 +203,11 @@ Result:
 
 ## Verify It's Live
 
-Don't trust the CLI's own success message alone — query the registry independently:
+**The easiest way — the actual public website, no login needed:**
+
+Visit **https://registry.modelcontextprotocol.io/** and type `mcp-dino` into the "Search servers by name..." box (URL becomes `?q=mcp-dino`). Confirmed in a real browser: shows `io.github.shennawardana23/mcp-dino v0.1.0`, correct description, "Updated 8/18/2026", "Showing 1 servers". Anyone in the world can do this, right now, with no auth.
+
+Don't trust the CLI's own success message alone either — the API can be queried independently:
 
 ```bash
 curl -s "https://registry.modelcontextprotocol.io/v0/servers?search=shennawardana23" | python3 -m json.tool
@@ -211,7 +215,7 @@ curl -s "https://registry.modelcontextprotocol.io/v0/servers?search=shennawardan
 
 Look for `"status": "active"` and a fresh `publishedAt` timestamp under `_meta["io.modelcontextprotocol.registry/official"]`. This is the canonical, protocol-level registry — the one `mcp-publisher` actually writes to, and the one any MCP-aware client or install tool should be reading from.
 
-**Note on searching by name:** `search=mcp-dino` and `search=dino` both returned zero results even right after a confirmed-successful publish; `search=shennawardana23` (the namespace owner) worked. The registry's `search` parameter doesn't reliably substring-match the server name — search by owner if the exact name doesn't hit.
+**Note on searching by name:** the raw REST API's `search=` param (`/v0/servers?search=mcp-dino`) returned zero results, and so did `search=dino` — only `search=shennawardana23` (the namespace owner) worked there. The *website's* own search box uses a different param (`?q=`) and matched `mcp-dino` correctly by name. If the raw API's `search=` doesn't hit, try the website's `q=` or search by owner instead.
 
 **`github.com/mcp` is a *different*, GitHub-curated directory** (220+ servers shown, e.g. Notion, Playwright, GitHub's own server) — not the same as `registry.modelcontextprotocol.io`, and its sourcing/sync process isn't publicly documented. Searching `github.com/mcp?search=mcp-dino` (or `dino`, or `shennawardana23`) returned **"No MCPs found"** immediately after a confirmed-live registry publish. That is *not* evidence the publish failed — it's a separate index with unknown criteria and/or lag. The registry API above is the authoritative check; treat `github.com/mcp` as a bonus discovery surface that may catch up later, not a pass/fail gate.
 
